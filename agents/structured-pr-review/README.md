@@ -1,64 +1,96 @@
-# Claude Code PR-review subagent
+# Evidence-grounded Claude Code PR reviewer
 
-A CLI wrapper that fetches a real GitHub PR, pins its head revision, invokes a
-no-tools Claude Code reviewer, and prints a structured Markdown comment.
-It never posts, merges, pushes, checks out or runs the target repository.
+Fetch a real GitHub pull request, pin its head revision, review all supplied
+textual hunks, and print a Markdown comment with Summary, Identified risks,
+Improvement suggestions and Confidence. Nothing is posted automatically and no
+code from the reviewed repository is checked out or executed.
 
-## Setup
+## Setup and run
 
-1. Install Python 3.10+, GitHub CLI and Claude Code; sign in to `gh` and Claude.
-2. Put this directory on PATH and run `chmod +x claude-review` (or invoke
-   `bash /path/to/claude-review`). The Python implementation has no dependencies.
-3. Run `claude-review --pr https://github.com/OWNER/REPO/pull/123`.
+1. Install Python 3.10+, GitHub CLI and Claude Code. Authenticate `gh` and Claude
+   with accounts permitted to access the chosen repository/provider.
+2. Put this directory on PATH and make `claude-review` executable, or invoke its
+   absolute path with Bash.
+3. Run:
 
-Use `--evidence-dir ./new-run` to retain the pinned packet, structured review,
-rendered Markdown and hashes. The directory must be new so previous evidence is
-not overwritten. `--collect-only` fetches the actual diff without model usage.
-`--model`, `--timeout`, `--max-diff-bytes` and `--max-budget-usd` make limits
-explicit. The default model budget is $1 per model invocation. A review uses two
-invocations (draft and source-check), so their configured budgets can total $2.
-The timeout is also per invocation, not the total wall-clock duration. These
-options do not purchase credit or top up an account.
+```sh
+claude-review --pr https://github.com/OWNER/REPO/pull/123 \
+  --evidence-dir ./new-review
+```
 
-## Review contract
+The default profile is native Claude Code with `--model opus`, the profile used
+for current quality validation. The model is configurable, not pinned forever
+to a vendor alias. The recorded validation provider resolved it to Claude Opus 5.
+Use `--timeout`, `--max-diff-bytes`, and `--max-budget-usd` for explicit limits.
+The $1 default budget is divided among possible model calls; raising that limit
+is not a purchase. Actual account billing/plan rules are controlled by the provider.
+`--collect-only` fetches evidence without calling a model.
 
-Summary (2-3 sentences), identified risks, improvement suggestions, and a
-Low/Medium/High confidence level. The subagent receives all changed-file patches
-provided by GitHub, with metadata, pinned head/base and explicit missing-patch
-limitations. It distinguishes demonstrated defects from context-dependent risks.
-Findings must cite a collected file and, when supplied, an actual new-side hunk
-line. No findings are manufactured just to populate a list.
+For optional local experimentation:
 
-GitHub files are paginated; changed HEADs and incomplete counts abort the run.
-Diff size over the explicit limit aborts rather than silently omitting code.
-Binary/missing patches are declared, not treated as reviewed source. A diff-only
-review cannot establish runtime correctness; output always says no tests ran.
+```sh
+claude-review --pr https://github.com/OWNER/REPO/pull/123 \
+  --backend ollama --model qwen3.5:4b --evidence-dir ./local-experiment
+```
 
-Claude starts in a temporary empty cwd with no tools, no project/user settings,
-no hooks, no MCP connections and no saved session. The script's GitHub reads are
-performed by `gh`, outside the model. It does not weaken the owner's existing
-Claude configuration or change credentials. No token values are put in prompts.
-For private PRs, the chosen Claude provider receives the diff: use this only when
-you have authorization for that provider to process the repository.
+That uses the real local Ollama API, **not** Claude Code or Anthropic inference.
+The tested small local models did not meet the review-quality bar. Their successful
+HTTP/JSON responses must not be mistaken for accurate reviews. The local endpoint
+is loopback-only in this implementation; it does not load or modify account keys.
 
-The printed Markdown is ready to copy into a PR comment after review. Posting
-is deliberately a separate action. `samples/` holds actual executed examples
-and labels their validation scope. Deterministic tests use fake process outputs;
-they do not masquerade as live Claude results.
+## What prevents the observed false findings
+
+- Each candidate cites exact, full source lines with stable before/after reference
+  IDs. A quote fragment that hides part of an expression is rejected.
+- A separate audit checks the description, concrete scenario, proposed fix and
+  whether the failure was introduced. All four must pass, not just the general idea.
+- Complete Python functions visible in the diff are parsed with `ast`, never
+  executed. Syntactic return facts distinguish a tuple from its individual members.
+  A narrowly defined whole-return claim quoting only a tuple member is rejected.
+- Removed guards can cause faults on unchanged lines. Such candidates are kept for
+  a causal audit rather than automatically discarded for citing an unchanged line.
+- Documented intentional changes, invented compatibility promises, unsupported
+  missing-test claims, praise and cosmetic preferences are not actionable defects.
+- Confidence is capped at Medium (Low when source/context is incomplete). Neither
+  source matching nor agreement between model passes is a calibrated accuracy score.
+
+This addresses observed failure modes. It cannot prove arbitrary model prose true.
+A person should review the resulting comment before posting or relying on it.
+
+## Coverage, limits and retained evidence
+
+All changed-file pages are fetched. An incomplete count, duplicate file, changed
+head, oversized total diff or malformed response stops the run with an explicit
+error. Missing binary/text patches are recorded as limitations. Hunk partitioning
+retains every source line; oversized hunks are split into labelled context-limited
+fragments rather than silently truncated. `PR_REVIEW_CHUNK_CHARS` controls the
+per-group source-record size. No whole-repository reasoning is claimed.
+
+A requested evidence directory must be new. It contains the pinned input, raw
+candidates, exact source quotes, independent audit decisions, excluded claims,
+rendered review, hashes and provider metadata. Failure saves input and diagnostics
+rather than manufacturing an empty successful review. Diagnostics may identify an
+account or include private diff text: review them before publishing.
+
+Native Claude runs in an empty temporary directory with no tools, MCP servers,
+project/user settings or hooks and no persisted review session. Normal account
+credentials are not rewritten by the review command. For a private PR, its diff
+is sent to the chosen provider; use only an authorized provider for that material.
+
+## Verification
 
 ```sh
 python3 -B -m unittest discover -s tests -v
 ```
 
-References: https://code.claude.com/docs/en/sub-agents and
-https://code.claude.com/docs/en/cli-reference (checked 2026-09-17).
+Current deterministic tests cover parsing, pagination, stable revisions, quote
+matching, atomic audit decisions, AST facts, actual hook-free subprocess flags,
+positive defect retention, failure evidence, and the default native model profile.
 
-## Current validation status
+`validation/current/` contains the dated live native CLI runs and quality report.
+`SAMPLE-QUALITY.md` retains the earlier inaccurate local-model samples and records
+which changes address them. Earlier samples are historical failures, not current
+recommended comments. No generated review was posted to the sample upstream PRs.
 
-The runner has 34 passing tests and actual two-pass Claude Code executions on
-Click PRs #3782 and #3860. Both use local qwen3.5:4b, not Anthropic inference.
-The additional verification pass removed the false suggestions in #3782, but
-#3860 still has an inaccurate return-type description and speculative advice.
-A larger PR timed out on this local backend. This remains a draft pending
-review-quality and performance validation. Read SAMPLE-QUALITY.md before using sample comments. The tool never
-posts them automatically. One JSON code fence is accepted; extra prose is not.
+Official interfaces: https://code.claude.com/docs/en/cli-reference and
+https://code.claude.com/docs/en/sub-agents .

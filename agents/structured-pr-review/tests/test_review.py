@@ -90,11 +90,16 @@ class Tests(unittest.TestCase):
  def test_markdown_escapes_injected_html(self):
   r=review();r['summary']='<script>payload</script> A review.'
   self.assertNotIn('<script>',m.render(r,packet()))
+ def extraction(self):
+  return {'summary':[{'id':'s1','text':'A line is added.','evidence':[{'ref':'f0h1R2','quote':'two'}]}],'findings':[]}
+ def audit(self):return {'decisions':[{'id':'s1','checks':[{'field':'text','actual':'The added line is present.','matches':True}]}]}
  def test_tools_disabled_and_model_input_data(self):
-  with patch.object(m,'command',return_value=json.dumps({'structured_output':review()})) as run:r,meta=m.infer(packet(),'sonnet',10,1.0)
-  args=run.call_args.args[0];self.assertEqual(args[args.index('--tools')+1],'');self.assertIn('--strict-mcp-config',args);self.assertNotIn('push',args);self.assertIn('untrusted',run.call_args.kwargs['stdin'])
+  outputs=[json.dumps({'structured_output':self.extraction()}),json.dumps({'structured_output':self.audit()})]
+  with patch.object(m,'command',side_effect=outputs) as run:r,meta=m.infer(packet(),'sonnet',10,1.0)
+  args=run.call_args.args[0];self.assertEqual(args[args.index('--tools')+1],'');self.assertIn('--strict-mcp-config',args);self.assertNotIn('push',args);self.assertIn('UNTRUSTED_DATA',run.call_args.kwargs['stdin'])
  def test_independent_verification_pass_receives_draft_and_source(self):
-  with patch.object(m,'command',return_value=json.dumps({'structured_output':review()})) as run:r,meta=m.infer(packet(),'sonnet',10,1.0)
+  outputs=[json.dumps({'structured_output':self.extraction()}),json.dumps({'structured_output':self.audit()})]
+  with patch.object(m,'command',side_effect=outputs) as run:r,meta=m.infer(packet(),'sonnet',10,1.0)
   self.assertEqual(run.call_count,2);self.assertEqual(meta['passes'],2)
   self.assertIn('draft_review',run.call_args_list[1].kwargs['stdin']);self.assertIn('source_packet',run.call_args_list[1].kwargs['stdin'])
  def test_collect_only_no_model(self):
@@ -106,4 +111,21 @@ class Tests(unittest.TestCase):
  def test_missing_summary_rejected(self):
   r=review();r['summary']=' '
   with self.assertRaises(m.ReviewError):m.validate(r,packet())
+ def test_provider_json_error_preserves_actual_reason(self):
+  from types import SimpleNamespace
+  result=SimpleNamespace(returncode=1,stdout=json.dumps({'duration_ms':0,'result':'OAuth session expired and could not be refreshed','is_error':True}),stderr='')
+  with patch.object(m.subprocess,'run',return_value=result):
+   with self.assertRaisesRegex(m.ReviewError,'OAuth session expired') as ctx:m.command(['claude','-p'])
+  self.assertEqual(ctx.exception.diagnostics['stdout'],result.stdout)
+ def test_evidence_records_failure_not_success(self):
+  import tempfile
+  with tempfile.TemporaryDirectory() as td:
+   folder=Path(td)/'failed-evidence'
+   with patch.object(m,'collect',return_value=packet()),patch.object(m,'infer',side_effect=m.ReviewError('test failure')),patch('builtins.print'):
+    code=m.main(['--pr',URL,'--evidence-dir',str(folder)])
+   self.assertEqual(code,2);self.assertTrue((folder/'input.json').exists());self.assertFalse((folder/'review.json').exists());self.assertFalse(json.loads((folder/'error.json').read_text())['success'])
+ def test_cli_defaults_to_validated_native_profile(self):
+  import io
+  with patch.object(m,'collect',return_value=packet()),patch.object(m,'infer',return_value=(review(),{})) as inference,patch.object(m.sys,'stdout',io.StringIO()):code=m.main(['--pr',URL])
+  self.assertEqual(code,0);self.assertEqual(inference.call_args.args[1],'opus');self.assertEqual(inference.call_args.args[4],'claude')
 if __name__=='__main__':unittest.main()

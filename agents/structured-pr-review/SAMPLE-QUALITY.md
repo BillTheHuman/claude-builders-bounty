@@ -1,3 +1,10 @@
+# Current validation and historical failures
+
+The sections below preserve the earlier local-model results. They describe those
+recorded versions, not the final native profile. Current evidence, exact commands
+and source-based assessment are under `validation/current/`. No historical raw
+model output has been silently rewritten into a successful sample.
+
 # Executed samples: integration success is not review accuracy
 
 The two adjacent sample folders contain actual, unedited output from Claude Code
