@@ -15,7 +15,10 @@ Use `--evidence-dir ./new-run` to retain the pinned packet, structured review,
 rendered Markdown and hashes. The directory must be new so previous evidence is
 not overwritten. `--collect-only` fetches the actual diff without model usage.
 `--model`, `--timeout`, `--max-diff-bytes` and `--max-budget-usd` make limits
-explicit. The default model budget is $1 per review, not a purchase or top-up.
+explicit. The default model budget is $1 per model invocation. A review uses two
+invocations (draft and source-check), so their configured budgets can total $2.
+The timeout is also per invocation, not the total wall-clock duration. These
+options do not purchase credit or top up an account.
 
 ## Review contract
 
@@ -52,8 +55,10 @@ https://code.claude.com/docs/en/cli-reference (checked 2026-09-17).
 
 ## Current validation status
 
-The runner has 33 passing tests and two actual Claude Code executions on real
-PRs. Both samples used local qwen3.5:4b, not Anthropic inference. A source review
-found inaccurate suggestions, so this is a draft pending review-quality
-validation. Read SAMPLE-QUALITY.md before using sample comments. The tool never
+The runner has 34 passing tests and actual two-pass Claude Code executions on
+Click PRs #3782 and #3860. Both use local qwen3.5:4b, not Anthropic inference.
+The additional verification pass removed the false suggestions in #3782, but
+#3860 still has an inaccurate return-type description and speculative advice.
+A larger PR timed out on this local backend. This remains a draft pending
+review-quality and performance validation. Read SAMPLE-QUALITY.md before using sample comments. The tool never
 posts them automatically. One JSON code fence is accepted; extra prose is not.

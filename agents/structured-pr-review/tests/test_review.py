@@ -93,6 +93,10 @@ class Tests(unittest.TestCase):
  def test_tools_disabled_and_model_input_data(self):
   with patch.object(m,'command',return_value=json.dumps({'structured_output':review()})) as run:r,meta=m.infer(packet(),'sonnet',10,1.0)
   args=run.call_args.args[0];self.assertEqual(args[args.index('--tools')+1],'');self.assertIn('--strict-mcp-config',args);self.assertNotIn('push',args);self.assertIn('untrusted',run.call_args.kwargs['stdin'])
+ def test_independent_verification_pass_receives_draft_and_source(self):
+  with patch.object(m,'command',return_value=json.dumps({'structured_output':review()})) as run:r,meta=m.infer(packet(),'sonnet',10,1.0)
+  self.assertEqual(run.call_count,2);self.assertEqual(meta['passes'],2)
+  self.assertIn('draft_review',run.call_args_list[1].kwargs['stdin']);self.assertIn('source_packet',run.call_args_list[1].kwargs['stdin'])
  def test_collect_only_no_model(self):
   with patch.object(m,'collect',return_value=packet()),patch.object(m,'infer') as infer,patch('builtins.print'):code=m.main(['--pr',URL,'--collect-only'])
   self.assertEqual(code,0);infer.assert_not_called()
