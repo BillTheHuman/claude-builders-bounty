@@ -28,6 +28,8 @@ French narrative; and sends the result to Discord.
 - Five real n8n engine scenarios passed against **synthetic HTTP services**:
   English, French, empty week, incomplete GitHub search, and truncated Claude
   output. The two negative scenarios stopped without sending a message.
+- Live public GitHub validation also passed: 2 commits, 2 closed issues, and 13
+  merged PRs in the tested window. Model/delivery were still synthetic.
 - No live Anthropic request or real Discord delivery is claimed.
 - The actual n8n editor screenshot is included in `engine-evidence/`. It shows
   successful execution with visibly labeled synthetic external services.

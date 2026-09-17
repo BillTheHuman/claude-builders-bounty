@@ -43,3 +43,24 @@ retired; see MODEL-NOTE.md and the maintainer clarification request.
 ![Successful fixture execution in the real n8n editor](engine-evidence/n8n-successful-fixture-execution.png)
 
 This is an unaltered browser capture of n8n 2.39.6 execution ID 2, which succeeded. The workflow title explicitly identifies synthetic services. It is real engine/UI execution evidence, not evidence of a live Anthropic request or a real Discord message. The earlier UI startup timeout is resolved.
+
+## Live GitHub transport validation
+
+A real n8n execution on September 17, 2026 collected the public
+`Bitcoindefi/OpenAO` seven-day window: **2 commits, 2 closed issues, and
+13 merged pull requests**. Import and execution both exited successfully.
+This complements the deterministic fixtures with actual GitHub REST responses.
+
+Claude and Discord remained explicitly synthetic local HTTP services. This
+result does not establish a real Anthropic request or external message delivery.
+No GitHub credential was used for this public-repository test. The submitted
+production workflow retains its real provider URLs and credential settings.
+
+```sh
+NODE_BIN=/path/to/node N8N_CLI=/path/to/n8n/bin/n8n \
+  python3 test/run-live-github.py --repository owner/repository
+```
+
+Use `--require-activity` to require at least one activity item. Evidence is saved
+in a uniquely dated local folder. Counts naturally change with the reporting
+window; this is a smoke test, not a fixed expected-count assertion.
