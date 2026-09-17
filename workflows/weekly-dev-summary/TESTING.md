@@ -37,3 +37,9 @@ The production workflow remains inactive and retains the real provider URLs and
 credential references. A live manual run with the operator's own credentials
 is still required before activation. The former requested Claude model is
 retired; see MODEL-NOTE.md and the maintainer clarification request.
+
+## Real n8n UI evidence
+
+![Successful fixture execution in the real n8n editor](engine-evidence/n8n-successful-fixture-execution.png)
+
+This is an unaltered browser capture of n8n 2.39.6 execution ID 2, which succeeded. The workflow title explicitly identifies synthetic services. It is real engine/UI execution evidence, not evidence of a live Anthropic request or a real Discord message. The earlier UI startup timeout is resolved.
