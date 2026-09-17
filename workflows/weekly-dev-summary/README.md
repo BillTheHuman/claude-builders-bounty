@@ -29,8 +29,8 @@ French narrative; and sends the result to Discord.
   English, French, empty week, incomplete GitHub search, and truncated Claude
   output. The two negative scenarios stopped without sending a message.
 - No live Anthropic request or real Discord delivery is claimed.
-- The requested n8n UI execution screenshot is not yet supplied. The isolated
-  UI startup timed out; successful CLI-engine run evidence is retained instead.
+- The actual n8n editor screenshot is included in `engine-evidence/`. It shows
+  successful execution with visibly labeled synthetic external services.
 
 See `TESTING.md` and `engine-evidence/README.md` for reproduction and limits.
 Run the code-level suite with `node --test test/workflow.test.cjs`.
